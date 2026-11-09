@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Life Widget - Time Progress</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- PWA Web App Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .pulse-dot {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.35);
+                opacity: 0.85;
+            }
+        }
+
+        .gauge-bg {
+            stroke: #262626;
+        }
+
+        .gauge-val {
+            stroke: #f97316;
+            transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Smooth tab transition */
+        .tab-btn {
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body class="bg-black text-white flex flex-col justify-between select-none">
+
+    <!-- HEADER / APP BAR -->
+    <header class="w-full pt-4 pb-2 px-5 flex flex-col gap-3 border-b border-neutral-900 bg-black/80 backdrop-blur-md z-10">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+                    <i data-lucide="clock" class="w-4 h-4 text-orange-500"></i>
+                </div>
+                <h1 class="text-sm font-semibold tracking-wide text-neutral-200 uppercase font-mono">Life Progress</h1>
+            </div>
+
+            <!-- Action Buttons (Settings & View Switch) -->
+            <div class="flex items-center gap-2">
+                <button id="viewToggleBtn" aria-label="Cambia visualizzazione" class="p-2 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 transition-all active:scale-95">
+                    <i id="viewToggleIcon" data-lucide="pie-chart" class="w-4 h-4"></i>
+                </button>
+                <button id="settingsToggleBtn" aria-label="Impostazioni" class="p-2 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-300 transition-all active:scale-95">
+                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex items-center gap-1 overflow-x-auto no-scrollbar py-1 text-xs font-medium text-neutral-500 border-b border-neutral-800/60" id="navTabs">
+            <button data-view="oggi" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Oggi</button>
+            <button data-view="settimana" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Settimana</button>
+            <button data-view="mese" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Mese</button>
+            <button data-view="calendario" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Calendario</button>
+            <button data-view="anno" class="tab-btn px-3 py-1.5 rounded-full text-white font-semibold bg-neutral-800/80 whitespace-nowrap">Anno</button>
+            <button data-view="vita" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Vita</button>
+            <button data-view="attivita" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Attività</button>
+            <button data-view="countdown" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Countdown</button>
+            <button data-view="cronometro" class="tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200 whitespace-nowrap">Cronometro</button>
+        </nav>
+    </header>
+
+    <!-- MAIN DISPLAY AREA -->
+    <main class="flex-1 px-5 flex flex-col justify-center items-center relative overflow-y-auto no-scrollbar py-2">
+        
+        <!-- Big Period / Title Bar & Extra Controls -->
+        <div class="w-full flex items-center justify-between mb-4">
+            <div>
+                <h2 id="mainDisplayTitle" class="text-3xl font-extrabold tracking-tight text-white font-mono">2026</h2>
+                <p id="mainDisplaySubtitle" class="text-xs text-neutral-500 mt-0.5">Progresso temporale</p>
+            </div>
+            
+            <!-- Contextual Selector Actions (Dynamic based on active tab) -->
+            <div id="subViewControls" class="flex items-center gap-1"></div>
+        </div>
+
+        <!-- Visualizer Container -->
+        <div id="visualizerContainer" class="w-full flex-1 flex flex-col items-center justify-center min-h-[300px]">
+            <!-- Grid View (Generated Dynamic Dots) -->
+            <div id="dotGrid" class="w-full h-full max-h-[480px] grid place-content-center transition-all duration-300">
+                <!-- Dots rendered dynamically via JS -->
+            </div>
+
+            <!-- Curved Arc Gauge View (Hidden by default) -->
+            <div id="arcView" class="hidden w-full h-full flex flex-col items-center justify-center py-6">
+                <div class="relative w-64 h-36 flex items-center justify-center">
+                    <svg class="w-full h-full overflow-visible" viewBox="0 0 200 110">
+                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" class="gauge-bg" stroke-width="12" stroke-linecap="round" />
+                        <path id="gaugePath" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" class="gauge-val" stroke-width="12" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2" />
+                    </svg>
+                    <div class="absolute bottom-2 text-center">
+                        <span id="arcPercentage" class="text-3xl font-bold font-mono text-white">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar View (Hidden by default) -->
+            <div id="calendarView" class="hidden w-full max-w-xs flex flex-col items-center justify-center gap-3 py-2">
+                <div class="w-full flex items-center justify-between text-xs font-mono mb-1">
+                    <button id="calPrevMonth" class="p-1 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <span id="calMonthYearLabel" class="font-bold text-white uppercase"></span>
+                    <button id="calNextMonth" class="p-1 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="w-full grid grid-cols-7 text-center text-[11px] font-mono text-neutral-500 font-semibold mb-1">
+                    <span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span>
+                </div>
+                <div id="calendarGrid" class="w-full grid grid-cols-7 gap-1.5 text-center font-mono text-xs">
+                    <!-- Dynamic Days -->
+                </div>
+            </div>
+
+            <!-- Stopwatch View (Hidden by default) -->
+            <div id="stopwatchView" class="hidden w-full h-full flex flex-col items-center justify-center gap-4">
+                <div class="text-5xl font-extrabold font-mono text-white tracking-widest my-4" id="stopwatchDisplay">
+                    00:00<span class="text-2xl text-orange-500">.00</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="swStartBtn" class="px-5 py-2.5 rounded-full bg-orange-600 hover:bg-orange-500 text-white font-medium text-xs transition-transform active:scale-95 flex items-center gap-1.5 shadow-lg shadow-orange-950">
+                        <i data-lucide="play" class="w-4 h-4"></i> Avvia
+                    </button>
+                    <button id="swLapBtn" class="px-4 py-2.5 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium text-xs transition-transform active:scale-95">
+                        Giro
+                    </button>
+                    <button id="swResetBtn" class="px-4 py-2.5 rounded-full bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 font-medium text-xs transition-transform active:scale-95">
+                        Reset
+                    </button>
+                </div>
+                <div id="swLapsList" class="w-full max-w-xs max-h-32 overflow-y-auto no-scrollbar space-y-1 mt-2 text-xs font-mono text-neutral-400 border-t border-neutral-800/80 pt-2">
+                    <!-- Dynamic laps -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER STATS BAR -->
+    <footer class="w-full py-4 px-6 border-t border-neutral-900 bg-black flex items-center justify-between text-xs font-mono text-neutral-400">
+        <div class="flex items-center gap-2">
+            <button id="refreshBtn" aria-label="Aggiorna dati" class="text-neutral-500 hover:text-white transition-colors">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+            </button>
+            <span id="footerStatusText" class="text-[11px] text-neutral-500">Sincronizzato</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="percentageDisplay" class="font-bold text-white text-sm">0,0%</span>
+            <span id="ratioDisplay" class="text-neutral-500 text-xs">0/0</span>
+        </div>
+    </footer>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="w-full max-w-md bg-neutral-900 rounded-t-2xl sm:rounded-2xl border border-neutral-800 p-5 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+            
+            <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4 h-4 text-orange-500"></i> Impostazioni Personali
+                </h3>
+                <button id="closeSettingsBtn" class="p-1 rounded-lg text-neutral-400 hover:text-white bg-neutral-800">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Life Settings -->
+            <div class="space-y-3 pt-1">
+                <h4 class="text-xs font-semibold text-orange-400 tracking-wider uppercase">Vita & Anagrafica</h4>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <label class="block text-neutral-400 mb-1">Data di nascita</label>
+                        <input type="date" id="inputBirthDate" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2.5 py-2 text-white focus:outline-none focus:border-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-neutral-400 mb-1">Aspettativa (anni)</label>
+                        <input type="number" id="inputLifeExpectancy" min="1" max="120" class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2.5 py-2 text-white focus:outline-none focus:border-orange-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Palette Customization -->
+            <div class="space-y-3 pt-2 border-t border-neutral-800">
+                <h4 class="text-xs font-semibold text-orange-400 tracking-wider uppercase">Colori Personalizzati</h4>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                        <label class="block text-neutral-400 mb-1">Completato</label>
+                        <input type="color" id="inputColorPassed" class="w-full h-8 bg-neutral-800 border border-neutral-700 rounded cursor-pointer p-0.5">
+                    </div>
+                    <div>
+                        <label class="block text-neutral-400 mb-1">In Corso</label>
+                        <input type="color" id="inputColorActive" class="w-full h-8 bg-neutral-800 border border-neutral-700 rounded cursor-pointer p-0.5">
+                    </div>
+                    <div>
+                        <label class="block text-neutral-400 mb-1">Rimanente</label>
+                        <input type="color" id="inputColorRemaining" class="w-full h-8 bg-neutral-800 border border-neutral-700 rounded cursor-pointer p-0.5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manage Habits / Activities -->
+            <div class="pt-2 border-t border-neutral-800">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-neutral-400 font-medium text-xs">Gestione Attività / Tracker</label>
+                    <button id="addNewHabitBtn" class="text-[11px] text-orange-400 hover:text-orange-300 flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuova
+                    </button>
+                </div>
+                <div id="habitsListContainer" class="space-y-2 max-h-40 overflow-y-auto no-scrollbar pr-1">
+                    <!-- Dynamic Habits list -->
+                </div>
+            </div>
+
+            <!-- Manage Countdowns -->
+            <div class="pt-2 border-t border-neutral-800">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-neutral-400 font-medium text-xs">Gestione Eventi Countdown</label>
+                    <button id="addNewCountdownBtn" class="text-[11px] text-orange-400 hover:text-orange-300 flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuovo Evento
+                    </button>
+                </div>
+                <div id="countdownsListContainer" class="space-y-2 max-h-40 overflow-y-auto no-scrollbar pr-1">
+                    <!-- Dynamic Countdowns list -->
+                </div>
+            </div>
+
+            <!-- Save Action Button -->
+            <div class="pt-3">
+                <button id="saveSettingsBtn" class="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 font-medium text-xs text-white transition-all active:scale-95 shadow-lg shadow-orange-950/40">
+                    Salva Impostazioni
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // Default Configuration
+        const defaultConfig = {
+            birthDate: '1998-05-15',
+            lifeExpectancy: 80,
+            habits: [
+                { id: 'h1', title: 'Allenamenti', completed: 25, total: 60 },
+                { id: 'h2', title: 'Bicchieri d\'acqua', completed: 5, total: 8 },
+                { id: 'h3', title: 'Libri letti', completed: 8, total: 12 }
+            ],
+            selectedHabitId: 'h1',
+            countdowns: [
+                { id: 'c1', title: 'Vacanze', targetDate: '2026-08-01', startDate: '2026-01-01', manualProgress: null }
+            ],
+            selectedCountdownId: 'c1',
+            todaySubView: 'hours', // 'hours', 'minutes', 'pomodoro'
+            calendarYear: new Date().getFullYear(),
+            calendarMonth: new Date().getMonth(),
+            pomodoroTimeRemaining: 25 * 60,
+            pomodoroTotalTime: 25 * 60,
+            pomodoroRunning: false,
+            colorPassed: '#ffffff',
+            colorActive: '#f97316',
+            colorRemaining: '#262626',
+            activeView: 'anno',
+            visualType: 'grid' // 'grid' or 'arc'
+        };
+
+        // App State
+        let config = { ...defaultConfig };
+        let pomodoroTimerId = null;
+
+        // Stopwatch State
+        let swStartTime = 0;
+        let swElapsedTime = 0;
+        let swTimerId = null;
+        let swRunning = false;
+        let swLaps = [];
+
+        // Load config from LocalStorage
+        function loadSavedConfig() {
+            try {
+                const saved = localStorage.getItem('life_widget_config');
+                if (saved) {
+                    config = { ...defaultConfig, ...JSON.parse(saved) };
+                }
+            } catch (e) {
+                console.error("Errore nel caricamento delle impostazioni da localStorage:", e);
+            }
+        }
+
+        // Save config to LocalStorage
+        function saveConfig() {
+            try {
+                localStorage.setItem('life_widget_config', JSON.stringify(config));
+            } catch (e) {
+                console.error("Errore nel salvataggio su localStorage:", e);
+            }
+        }
+
+        // Render Dynamic Dot Grid
+        function renderGrid(passed, total, isInteractive = false) {
+            const gridContainer = document.getElementById('dotGrid');
+            gridContainer.innerHTML = '';
+
+            let cols = 10;
+            if (total > 200) cols = 15;
+            if (total > 300) cols = 18;
+            if (total <= 30) cols = 6;
+            if (total <= 12) cols = 4;
+
+            gridContainer.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+            gridContainer.style.gap = total > 100 ? '5px' : '9px';
+
+            const activeIndex = Math.floor(passed);
+
+            for (let i = 0; i < total; i++) {
+                const dot = document.createElement('div');
+                let dotSize = 'w-2.5 h-2.5';
+                if (total > 200) dotSize = 'w-1.5 h-1.5';
+                if (total <= 31) dotSize = 'w-3.5 h-3.5';
+
+                dot.className = `${dotSize} rounded-full transition-all duration-200`;
+
+                if (i < activeIndex) {
+                    dot.style.backgroundColor = config.colorPassed;
+                } else if (i === activeIndex && passed < total) {
+                    dot.style.backgroundColor = config.colorActive;
+                    dot.classList.add('pulse-dot');
+                } else {
+                    dot.style.backgroundColor = config.colorRemaining;
+                }
+
+                if (isInteractive) {
+                    dot.classList.add('cursor-pointer', 'hover:scale-125');
+                    dot.addEventListener('click', () => {
+                        let currentHabit = config.habits.find(h => h.id === config.selectedHabitId);
+                        if (currentHabit) {
+                            currentHabit.completed = i + 1;
+                            saveConfig();
+                            updateDisplay();
+                        }
+                    });
+                }
+
+                gridContainer.appendChild(dot);
+            }
+        }
+
+        // Render Arc Gauge View
+        function renderArc(percentage) {
+            const path = document.getElementById('gaugePath');
+            const percText = document.getElementById('arcPercentage');
+            const totalLength = 251.2;
+            const offset = totalLength - (totalLength * (percentage / 100));
+            path.style.strokeDashoffset = offset;
+            percText.innerText = `${percentage.toFixed(1)}%`;
+        }
+
+        // Render Calendar Grid View
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const label = document.getElementById('calMonthYearLabel');
+            if (!grid || !label) return;
+
+            grid.innerHTML = '';
+            const year = config.calendarYear;
+            const month = config.calendarMonth;
+
+            const monthDate = new Date(year, month, 1);
+            const monthName = monthDate.toLocaleString('it-IT', { month: 'long' });
+            label.innerText = `${monthName} ${year}`;
+
+            const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const now = new Date();
+
+            // Empty cells for offset
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'h-8';
+                grid.appendChild(emptyCell);
+            }
+
+            // Days of the month
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'h-8 flex items-center justify-center rounded-lg border text-xs font-semibold transition-all';
+
+                const cellDate = new Date(year, month, d);
+                const isToday = now.getFullYear() === year && now.getMonth() === month && now.getDate() === d;
+                const isPast = cellDate < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                if (isToday) {
+                    dayCell.className += ' border-orange-500 bg-orange-500/20 text-orange-400 font-bold pulse-dot';
+                } else if (isPast) {
+                    dayCell.className += ' border-neutral-800 bg-neutral-900 text-white';
+                } else {
+                    dayCell.className += ' border-neutral-900 bg-black text-neutral-600';
+                }
+
+                dayCell.innerText = d;
+                grid.appendChild(dayCell);
+            }
+        }
+
+        // Main View Update Logic
+        function updateDisplay() {
+            const now = new Date();
+            let passed = 0;
+            let total = 100;
+            let title = '';
+            let subtitle = '';
+            let unitLabel = '';
+            let interactive = false;
+
+            const subViewControls = document.getElementById('subViewControls');
+            subViewControls.innerHTML = '';
+
+            switch (config.activeView) {
+                case 'oggi':
+                    title = 'OGGI';
+                    if (config.todaySubView === 'hours') {
+                        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        passed = (now - startOfDay) / (1000 * 60 * 60);
+                        total = 24;
+                        subtitle = `${now.getHours()}h ${now.getMinutes()}m trascorse`;
+                        unitLabel = 'ore';
+                    } else if (config.todaySubView === 'minutes') {
+                        passed = now.getMinutes();
+                        total = 60;
+                        subtitle = `Ora corrente: ${now.getHours()}:` + String(now.getMinutes()).padStart(2, '0');
+                        unitLabel = 'min';
+                    } else if (config.todaySubView === 'pomodoro') {
+                        passed = (config.pomodoroTotalTime - config.pomodoroTimeRemaining) / 60;
+                        total = config.pomodoroTotalTime / 60;
+                        subtitle = `Pomodoro: ${Math.floor(config.pomodoroTimeRemaining / 60)}m ${config.pomodoroTimeRemaining % 60}s`;
+                        unitLabel = 'min';
+                    }
+
+                    subViewControls.innerHTML = `
+                        <select id="todaySubViewSelect" class="bg-neutral-900 text-xs border border-neutral-700 rounded-lg px-2 py-1 text-white focus:outline-none">
+                            <option value="hours" ${config.todaySubView === 'hours' ? 'selected' : ''}>24 Ore</option>
+                            <option value="minutes" ${config.todaySubView === 'minutes' ? 'selected' : ''}>60 Minuti</option>
+                            <option value="pomodoro" ${config.todaySubView === 'pomodoro' ? 'selected' : ''}>Timer Pomodoro</option>
+                        </select>
+                    `;
+                    break;
+
+                case 'settimana':
+                    title = 'SETTIMANA';
+                    const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0
+                    passed = dayOfWeek + (now.getHours() / 24);
+                    total = 7;
+                    subtitle = `Giorno ${dayOfWeek + 1} di 7`;
+                    unitLabel = 'giorni';
+                    break;
+
+                case 'mese':
+                    const currentMonth = now.toLocaleString('it-IT', { month: 'long' }).toUpperCase();
+                    title = currentMonth;
+                    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                    passed = (now.getDate() - 1) + (now.getHours() / 24);
+                    total = daysInMonth;
+                    subtitle = `Giorno ${now.getDate()} di ${daysInMonth}`;
+                    unitLabel = 'giorni';
+                    break;
+
+                case 'calendario':
+                    title = 'CALENDARIO';
+                    subtitle = 'Vista mensile completa';
+                    const dim = new Date(config.calendarYear, config.calendarMonth + 1, 0).getDate();
+                    if (now.getFullYear() === config.calendarYear && now.getMonth() === config.calendarMonth) {
+                        passed = now.getDate();
+                    } else if (new Date(config.calendarYear, config.calendarMonth) < new Date(now.getFullYear(), now.getMonth())) {
+                        passed = dim;
+                    } else {
+                        passed = 0;
+                    }
+                    total = dim;
+                    unitLabel = 'giorni';
+                    break;
+
+                case 'anno':
+                    title = now.getFullYear().toString();
+                    const startOfYear = new Date(now.getFullYear(), 0, 1);
+                    const isLeap = (year) => (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+                    total = isLeap(now.getFullYear()) ? 366 : 365;
+                    passed = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
+                    subtitle = `${passed} / ${total} giorni trascorsi`;
+                    unitLabel = 'giorni';
+                    break;
+
+                case 'vita':
+                    title = 'VITA';
+                    const birth = new Date(config.birthDate);
+                    const ageYears = (now - birth) / (1000 * 60 * 60 * 24 * 365.25);
+                    passed = Math.max(0, ageYears);
+                    total = parseFloat(config.lifeExpectancy) || 80;
+                    subtitle = `${passed.toFixed(1)} di ${total} anni d'aspettativa`;
+                    unitLabel = 'anni';
+                    break;
+
+                case 'attivita':
+                    let activeHabit = config.habits.find(h => h.id === config.selectedHabitId) || config.habits[0];
+                    if (!activeHabit) {
+                        title = 'ATTIVITÀ';
+                        subtitle = 'Nessuna attività impostata';
+                        total = 100;
+                        passed = 0;
+                    } else {
+                        title = activeHabit.title.toUpperCase();
+                        passed = activeHabit.completed;
+                        total = activeHabit.total;
+                        subtitle = `Tocca un pallino per aggiornare (${passed}/${total})`;
+                        unitLabel = 'punti';
+                        interactive = true;
+
+                        if (config.habits.length > 1) {
+                            let optionsHtml = config.habits.map(h => 
+                                `<option value="${h.id}" ${h.id === activeHabit.id ? 'selected' : ''}>${h.title}</option>`
+                            ).join('');
+                            subViewControls.innerHTML = `
+                                <select id="habitSelect" class="bg-neutral-900 text-xs border border-neutral-700 rounded-lg px-2 py-1 text-white focus:outline-none">
+                                    ${optionsHtml}
+                                </select>
+                            `;
+                        }
+                    }
+                    break;
+
+                case 'countdown':
+                    let activeCd = config.countdowns.find(c => c.id === config.selectedCountdownId) || config.countdowns[0];
+                    if (!activeCd) {
+                        title = 'COUNTDOWN';
+                        subtitle = 'Aggiungi un evento nelle impostazioni';
+                        total = 100;
+                        passed = 0;
+                    } else {
+                        title = activeCd.title.toUpperCase();
+                        const target = new Date(activeCd.targetDate);
+                        const start = activeCd.startDate ? new Date(activeCd.startDate) : new Date(now.getFullYear(), 0, 1);
+                        
+                        const totalDays = Math.max(1, Math.round((target - start) / (1000 * 60 * 60 * 24)));
+                        const autoPassedDays = Math.max(0, Math.round((now - start) / (1000 * 60 * 60 * 24)));
+                        
+                        if (activeCd.manualProgress !== null && activeCd.manualProgress !== undefined && !isNaN(activeCd.manualProgress) && activeCd.manualProgress !== '') {
+                            passed = Math.min(totalDays, Math.max(0, parseInt(activeCd.manualProgress, 10)));
+                        } else {
+                            passed = Math.min(totalDays, autoPassedDays);
+                        }
+
+                        const remainingDays = Math.max(0, totalDays - passed);
+                        total = totalDays;
+                        subtitle = remainingDays > 0 ? `${remainingDays} giorni rimanenti` : 'Traguardo raggiunto!';
+                        unitLabel = 'giorni';
+
+                        if (config.countdowns.length > 1) {
+                            let cdOptions = config.countdowns.map(c => 
+                                `<option value="${c.id}" ${c.id === activeCd.id ? 'selected' : ''}>${c.title}</option>`
+                            ).join('');
+                            subViewControls.innerHTML = `
+                                <select id="countdownSelect" class="bg-neutral-900 text-xs border border-neutral-700 rounded-lg px-2 py-1 text-white focus:outline-none">
+                                    ${cdOptions}
+                                </select>
+                            `;
+                        }
+                    }
+                    break;
+
+                case 'cronometro':
+                    title = 'CRONOMETRO';
+                    subtitle = 'Misurazione tempo di precisione';
+                    total = 60;
+                    passed = Math.floor((swElapsedTime / 1000) % 60);
+                    unitLabel = 'sec';
+                    break;
+            }
+
+            // Update UI elements
+            document.getElementById('mainDisplayTitle').innerText = title;
+            document.getElementById('mainDisplaySubtitle').innerText = subtitle;
+
+            const percentage = Math.min(100, Math.max(0, (passed / total) * 100));
+            document.getElementById('percentageDisplay').innerText = `${percentage.toFixed(1)}%`;
+            document.getElementById('ratioDisplay').innerText = `${Math.floor(passed)}/${total} ${unitLabel}`;
+
+            // Handle View Visibility
+            const swView = document.getElementById('stopwatchView');
+            const calView = document.getElementById('calendarView');
+            const dotGrid = document.getElementById('dotGrid');
+            const arcView = document.getElementById('arcView');
+
+            if (config.activeView === 'cronometro') {
+                swView.classList.remove('hidden');
+                calView.classList.add('hidden');
+                dotGrid.classList.add('hidden');
+                arcView.classList.add('hidden');
+            } else if (config.activeView === 'calendario') {
+                calView.classList.remove('hidden');
+                swView.classList.add('hidden');
+                dotGrid.classList.add('hidden');
+                arcView.classList.add('hidden');
+                renderCalendar();
+            } else {
+                swView.classList.add('hidden');
+                calView.classList.add('hidden');
+                if (config.visualType === 'grid') {
+                    dotGrid.classList.remove('hidden');
+                    arcView.classList.add('hidden');
+                    renderGrid(passed, total, interactive);
+                } else {
+                    dotGrid.classList.add('hidden');
+                    arcView.classList.remove('hidden');
+                    renderArc(percentage);
+                }
+            }
+
+            // Update Navigation Tabs Highlight
+            document.querySelectorAll('#navTabs button').forEach(btn => {
+                if (btn.getAttribute('data-view') === config.activeView) {
+                    btn.className = 'tab-btn px-3 py-1.5 rounded-full text-white font-semibold bg-neutral-800/90 shadow-sm border border-neutral-700/50';
+                } else {
+                    btn.className = 'tab-btn px-3 py-1.5 rounded-full text-neutral-400 hover:text-neutral-200';
+                }
+            });
+
+            // Re-bind listeners for dynamic select dropdowns
+            const todaySel = document.getElementById('todaySubViewSelect');
+            if (todaySel) {
+                todaySel.addEventListener('change', (e) => {
+                    config.todaySubView = e.target.value;
+                    saveConfig();
+                    updateDisplay();
+                });
+            }
+
+            const habitSel = document.getElementById('habitSelect');
+            if (habitSel) {
+                habitSel.addEventListener('change', (e) => {
+                    config.selectedHabitId = e.target.value;
+                    saveConfig();
+                    updateDisplay();
+                });
+            }
+
+            const cdSel = document.getElementById('countdownSelect');
+            if (cdSel) {
+                cdSel.addEventListener('change', (e) => {
+                    config.selectedCountdownId = e.target.value;
+                    saveConfig();
+                    updateDisplay();
+                });
+            }
+
+            lucide.createIcons();
+        }
+
+        // Stopwatch Functions
+        function updateStopwatchUI() {
+            const time = swRunning ? Date.now() - swStartTime + swElapsedTime : swElapsedTime;
+            const ms = Math.floor((time % 1000) / 10);
+            const sec = Math.floor((time / 1000) % 60);
+            const min = Math.floor(time / (1000 * 60));
+
+            const pad = (n) => n.toString().padStart(2, '0');
+            document.getElementById('stopwatchDisplay').innerHTML = `${pad(min)}:${pad(sec)}<span class="text-2xl text-orange-500">.${pad(ms)}</span>`;
+
+            const swStartBtn = document.getElementById('swStartBtn');
+            if (swStartBtn) {
+                swStartBtn.innerHTML = swRunning 
+                    ? `<i data-lucide="pause" class="w-4 h-4"></i> Pausa`
+                    : `<i data-lucide="play" class="w-4 h-4"></i> Avvia`;
+                lucide.createIcons();
+            }
+        }
+
+        function toggleStopwatch() {
+            if (swRunning) {
+                swElapsedTime += Date.now() - swStartTime;
+                clearInterval(swTimerId);
+                swRunning = false;
+            } else {
+                swStartTime = Date.now();
+                swTimerId = setInterval(updateStopwatchUI, 30);
+                swRunning = true;
+            }
+            updateStopwatchUI();
+        }
+
+        function resetStopwatch() {
+            clearInterval(swTimerId);
+            swRunning = false;
+            swElapsedTime = 0;
+            swLaps = [];
+            updateStopwatchUI();
+            renderSwLaps();
+        }
+
+        function recordSwLap() {
+            if (swElapsedTime === 0 && !swRunning) return;
+            const time = swRunning ? Date.now() - swStartTime + swElapsedTime : swElapsedTime;
+            swLaps.unshift(time);
+            renderSwLaps();
+        }
+
+        function renderSwLaps() {
+            const container = document.getElementById('swLapsList');
+            if (!container) return;
+            container.innerHTML = swLaps.map((lapTime, idx) => {
+                const ms = Math.floor((lapTime % 1000) / 10);
+                const sec = Math.floor((lapTime / 1000) % 60);
+                const min = Math.floor(lapTime / (1000 * 60));
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `<div class="flex justify-between py-1 border-b border-neutral-900">
+                    <span>Giro ${swLaps.length - idx}</span>
+                    <span>${pad(min)}:${pad(sec)}.${pad(ms)}</span>
+                </div>`;
+            }).join('');
+        }
+
+        // Render Settings Lists
+        function renderHabitsSettingsList() {
+            const container = document.getElementById('habitsListContainer');
+            container.innerHTML = '';
+            config.habits.forEach((h, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2 bg-neutral-800/80 p-2 rounded-lg border border-neutral-700/60';
+                div.innerHTML = `
+                    <input type="text" value="${h.title}" data-index="${index}" data-field="title" class="habit-input bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-white flex-1 text-xs" placeholder="Nome">
+                    <input type="number" value="${h.completed}" data-index="${index}" data-field="completed" class="habit-input bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-white w-14 text-xs text-center">
+                    <span class="text-neutral-500 text-xs">/</span>
+                    <input type="number" value="${h.total}" data-index="${index}" data-field="total" class="habit-input bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-white w-14 text-xs text-center">
+                    <button data-index="${index}" class="remove-habit-btn p-1 text-red-400 hover:text-red-300">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function renderCountdownsSettingsList() {
+            const container = document.getElementById('countdownsListContainer');
+            container.innerHTML = '';
+            config.countdowns.forEach((c, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex flex-col gap-1.5 bg-neutral-800/80 p-2.5 rounded-lg border border-neutral-700/60';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="${c.title}" data-index="${index}" data-field="title" class="cd-input bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-white flex-1 text-xs" placeholder="Titolo evento">
+                        <button data-index="${index}" class="remove-cd-btn p-1 text-red-400 hover:text-red-300">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-neutral-400 w-20">Scadenza:</span>
+                        <input type="date" value="${c.targetDate || ''}" data-index="${index}" data-field="targetDate" class="cd-input bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-white flex-1 text-xs">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-neutral-400 w-20">Punto Attuale:</span>
+                        <input type="number" value="${c.manualProgress !== null && c.manualProgress !== undefined ? c.manualProgress : ''}" data-index="${index}" data-field="manualProgress" placeholder="Automatico (giorni)" class="cd-input bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-white flex-1 text-xs">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Tab Buttons
+            document.querySelectorAll('#navTabs button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    config.activeView = btn.getAttribute('data-view');
+                    saveConfig();
+                    updateDisplay();
+                });
+            });
+
+            // Toggle Visual Type (Grid vs Arc)
+            const viewToggleBtn = document.getElementById('viewToggleBtn');
+            viewToggleBtn.addEventListener('click', () => {
+                config.visualType = config.visualType === 'grid' ? 'arc' : 'grid';
+                
+                // Safely toggle lucide icon
+                const iconBtn = document.getElementById('viewToggleIcon');
+                if (iconBtn) {
+                    const newIconName = config.visualType === 'grid' ? 'pie-chart' : 'layout-grid';
+                    iconBtn.setAttribute('data-lucide', newIconName);
+                }
+                
+                saveConfig();
+                updateDisplay();
+            });
+
+            // Settings Modal Open/Close
+            const modal = document.getElementById('settingsModal');
+            document.getElementById('settingsToggleBtn').addEventListener('click', () => {
+                document.getElementById('inputBirthDate').value = config.birthDate;
+                document.getElementById('inputLifeExpectancy').value = config.lifeExpectancy;
+                document.getElementById('inputColorPassed').value = config.colorPassed;
+                document.getElementById('inputColorActive').value = config.colorActive;
+                document.getElementById('inputColorRemaining').value = config.colorRemaining;
+                renderHabitsSettingsList();
+                renderCountdownsSettingsList();
+
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+            });
+
+            document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+            });
+
+            // Add Habit
+            document.getElementById('addNewHabitBtn').addEventListener('click', () => {
+                config.habits.push({
+                    id: 'h_' + Date.now(),
+                    title: 'Nuova Attività',
+                    completed: 0,
+                    total: 30
+                });
+                renderHabitsSettingsList();
+            });
+
+            // Dynamic Habit input handlers
+            document.getElementById('habitsListContainer').addEventListener('input', (e) => {
+                const idx = e.target.dataset.index;
+                const field = e.target.dataset.field;
+                if (idx !== undefined && field) {
+                    if (field === 'title') {
+                        config.habits[idx][field] = e.target.value;
+                    } else {
+                        config.habits[idx][field] = parseInt(e.target.value, 10) || 0;
+                    }
+                }
+            });
+
+            document.getElementById('habitsListContainer').addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.remove-habit-btn');
+                if (removeBtn) {
+                    const idx = removeBtn.dataset.index;
+                    config.habits.splice(idx, 1);
+                    renderHabitsSettingsList();
+                }
+            });
+
+            // Add Countdown
+            document.getElementById('addNewCountdownBtn').addEventListener('click', () => {
+                config.countdowns.push({
+                    id: 'c_' + Date.now(),
+                    title: 'Nuovo Evento',
+                    targetDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    startDate: new Date().toISOString().split('T')[0],
+                    manualProgress: null
+                });
+                renderCountdownsSettingsList();
+            });
+
+            // Dynamic Countdown input handlers
+            document.getElementById('countdownsListContainer').addEventListener('input', (e) => {
+                const idx = e.target.dataset.index;
+                const field = e.target.dataset.field;
+                if (idx !== undefined && field) {
+                    if (field === 'manualProgress') {
+                        const val = e.target.value.trim();
+                        config.countdowns[idx][field] = val === '' ? null : parseInt(val, 10);
+                    } else {
+                        config.countdowns[idx][field] = e.target.value;
+                    }
+                }
+            });
+
+            document.getElementById('countdownsListContainer').addEventListener('click', (e) => {
+                const removeBtn = e.target.closest('.remove-cd-btn');
+                if (removeBtn) {
+                    const idx = removeBtn.dataset.index;
+                    config.countdowns.splice(idx, 1);
+                    renderCountdownsSettingsList();
+                }
+            });
+
+            // Save Settings
+            document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+                config.birthDate = document.getElementById('inputBirthDate').value;
+                config.lifeExpectancy = parseInt(document.getElementById('inputLifeExpectancy').value, 10) || 80;
+                config.colorPassed = document.getElementById('inputColorPassed').value;
+                config.colorActive = document.getElementById('inputColorActive').value;
+                config.colorRemaining = document.getElementById('inputColorRemaining').value;
+
+                saveConfig();
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                updateDisplay();
+            });
+
+            // Manual Refresh Button
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                updateDisplay();
+                const status = document.getElementById('footerStatusText');
+                status.innerText = 'Aggiornato';
+                setTimeout(() => { status.innerText = 'Sincronizzato'; }, 2000);
+            });
+
+            // Stopwatch controls listeners
+            document.getElementById('swStartBtn').addEventListener('click', toggleStopwatch);
+            document.getElementById('swResetBtn').addEventListener('click', resetStopwatch);
+            document.getElementById('swLapBtn').addEventListener('click', recordSwLap);
+
+            // Calendar Navigation
+            document.getElementById('calPrevMonth').addEventListener('click', () => {
+                config.calendarMonth--;
+                if (config.calendarMonth < 0) {
+                    config.calendarMonth = 11;
+                    config.calendarYear--;
+                }
+                saveConfig();
+                updateDisplay();
+            });
+
+            document.getElementById('calNextMonth').addEventListener('click', () => {
+                config.calendarMonth++;
+                if (config.calendarMonth > 11) {
+                    config.calendarMonth = 0;
+                    config.calendarYear++;
+                }
+                saveConfig();
+                updateDisplay();
+            });
+        }
+
+        // App Initialization
+        window.addEventListener('load', () => {
+            loadSavedConfig();
+            setupEventListeners();
+            updateDisplay();
+
+            // Refresh timer display once per minute
+            setInterval(() => {
+                if (config.activeView !== 'cronometro') {
+                    updateDisplay();
+                }
+            }, 60000);
+        });
+    </script>
+</body>
+</html>
