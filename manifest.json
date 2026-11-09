@@ -1,0 +1,17 @@
+{
+  "name": "Life Widget - Time Progress",
+  "short_name": "Life Progress",
+  "icons": [
+    {
+      "src": "icona-vita.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#FF7F32",
+  "categories": ["utilities", "productivity"],
+  "description": "Visualize your time progress from the day to your entire life. Highly customizable, with local storage memory."
+}
